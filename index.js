@@ -10,11 +10,15 @@ const app = express();
 app.use(express.json()); 
 app.use(cors());   
 
+app.get('/test', (req, res) => {
+    res.send('hahahah');
+})
+
 app.post("/register", async(req, res) => {
     let user = new User(req.body);
     let result = await user.save();
     result = result.toObject();
-    delete result.password
+    delete result.password  
     Jwt.sign({result}, jwtKey, {expiresIn: '2h'}, (err, token) => {
         if(err){
             res.send('Something went wrong!')
@@ -24,9 +28,13 @@ app.post("/register", async(req, res) => {
 }
 )
 
-app.post('/login', async(req, res) => {
+app.post('/login', async(req, res) => { 
     if(req.body.email && req.body.password){
-        let user = await User.findOne(req.body).select('-password')
+    let user = await User.findOne(req.body);
+    if(!user){
+        return res.status(404).send('User not found');
+    }
+        user = await User.findOne(req.body).select('-password')
         Jwt.sign({user}, jwtKey, {expiresIn: '2h'}, (err, token) => {
             if(err){
                 res.send('Something went wrong!')
@@ -37,6 +45,7 @@ app.post('/login', async(req, res) => {
 })
 
 app.post('/add-product', verifyToken, async(req, res) => {
+
     let product = new Product(req.body);
     let result = await product.save();
     res.send(result);
@@ -72,9 +81,8 @@ app.put('/products/:id', verifyToken, async(req, res) => {
 })
 
 app.delete('/products/:id', verifyToken, async(req, res) => {
-    let product = await Product.findOne(
-        {_id: req.params.id},
-        {$set: req.body}
+    let product = await Product.deleteOne(
+        {_id: req.params.id}
     )
     if(!product){
         return res.send('Product does not exist!')
@@ -83,18 +91,23 @@ app.delete('/products/:id', verifyToken, async(req, res) => {
 
 })
 
+app.delete('/users', async (req, res) => {
+    let user = await User.deleteMany();
+    res.send('Deleted ' + user.deletedCount + ' users');
+})
+
 app.get('/search/:key', verifyToken, async (req, res) => {
     let result = await Product.find({
         "$or": [
             {
                 name:{$regex: req.params.key}
-            },
-            {
-                company:{$regex: req.params.key}
-            },
-            {
-                category:{$regex: req.params.key}
             }
+            // {
+            //     company:{$regex: req.params.key}
+            // },
+            // {
+            //     category:{$regex: req.params.key}
+            // }
         ]
     });
     res.send(result);
@@ -117,4 +130,6 @@ function verifyToken(req, res, next) {
 }
 
 
-app.listen(5000);
+app.listen(5000, () => {
+    console.log('Server running on port 5000')
+});
