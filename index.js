@@ -11,10 +11,6 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-app.get("/test", (req, res) => {
-  res.send("hahahah");
-});
-
 app.post("/register", async (req, res) => {
   let user = new User(req.body);
   user.password = await bcrypt.hash(req.body.password, 10);
