@@ -12,8 +12,8 @@ app.use(express.json());
 app.use(cors());
 
 app.post("/register", async (req, res) => {
-  let user = new User(req.body);
-  user.password = await bcrypt.hash(req.body.password, 10);
+  const { username, password } = req.body;
+  user.password = await bcrypt.hash(user.password, 10);
   let result = await user.save();
   result = result.toObject();
   delete result.password;
@@ -26,18 +26,25 @@ app.post("/register", async (req, res) => {
 });
 
 app.post("/login", async (req, res) => {
-  if (req.body.email && req.body.password) {
-    let user = await User.findOne(req.body);
-    if (!user) {
-      return res.status(404).send("User not found");
-    }
-    user = await User.findOne(req.body).select("-password");
-    Jwt.sign({ user }, jwtKey, { expiresIn: "2h" }, (err, token) => {
-      if (err) {
-        res.send("Something went wrong!");
+  const { email, password } = req.body;
+  try {
+    if (email && password) {
+      let user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).send("User not found");
       }
-      res.send({ user, auth: token });
-    });
+      const validPassword = await bcrypt.compare(password, user.password);
+      if (!validPassword) return res.status(404).send("Invalid password");
+      user = await User.findOne({ email }).select("-password");
+      Jwt.sign({ user }, jwtKey, { expiresIn: "2h" }, (err, token) => {
+        if (err) {
+          res.send("Something went wrong!");
+        }
+        res.send({ user, auth: token });
+      });
+    }
+  } catch (err) {
+    res.send(err.message);
   }
 });
 
